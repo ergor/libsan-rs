@@ -1,0 +1,7 @@
+[package]
+name = "san-rs"
+version = "0.1.0"
+authors = ["erol"]
+edition = "2018"
+
+[dependencies]
