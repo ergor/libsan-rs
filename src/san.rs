@@ -1,9 +1,11 @@
 
 pub trait StrEnum {
+    type Output;
     fn to_str(&self) -> &str;
-    fn from_str<T>(value: &str) -> Result<T, &str>;
+    fn from_str(value: &str) -> Result<Self::Output, &str>;
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum Piece {
     Pawn,
     Bishop,
@@ -14,6 +16,8 @@ pub enum Piece {
 }
 
 impl StrEnum for Piece {
+    type Output = Piece;
+
     fn to_str(&self) -> &str {
         match self {
             Piece::Pawn => "",
@@ -24,8 +28,21 @@ impl StrEnum for Piece {
             Piece::Rook => "R"
         }
     }
+
+    fn from_str(value: &str) -> Result<Piece, &str> {
+        match value {
+            "" => Ok(Piece::Pawn),
+            "B" => Ok(Piece::Bishop),
+            "K" => Ok(Piece::King),
+            "N" => Ok(Piece::Knight),
+            "Q" => Ok(Piece::Queen),
+            "R" => Ok(Piece::Rook),
+            _ => Err("no such piece")
+        }
+    }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum Annotation {
     Blunder,
     Mistake,
@@ -35,6 +52,8 @@ pub enum Annotation {
 }
 
 impl StrEnum for Annotation {
+    type Output = Annotation;
+
     fn to_str(&self) -> &str {
         match self {
             Annotation::Blunder => "??",
@@ -44,14 +63,28 @@ impl StrEnum for Annotation {
             Annotation::Brilliant => "!!"
         }
     }
+
+    fn from_str(value: &str) -> Result<Annotation, &str> {
+        match value {
+            "??" => Ok(Annotation::Blunder),
+            "?" => Ok(Annotation::Mistake),
+            "?!" => Ok(Annotation::Interesting),
+            "!" => Ok(Annotation::Good),
+            "!!" => Ok(Annotation::Brilliant),
+            _ => Err("not an annotation")
+        }
+    }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum CastleType {
     Kingside,
     Queenside
 }
 
 impl StrEnum for CastleType {
+    type Output = CastleType;
+
     fn to_str(&self) -> &str {
         match self {
             CastleType::Kingside => "O-O",
@@ -59,26 +92,30 @@ impl StrEnum for CastleType {
         }
     }
 
-    fn from_str<CastleType>(value: &str) -> Result<CastleType, &str> {
+    fn from_str(value: &str) -> Result<CastleType, &str> {
         match value {
             "O-O" => Ok(CastleType::Kingside),
-            "O-O-O" => Ok(Queenside),
+            "O-O-O" => Ok(CastleType::Queenside),
             _ => Err("not a castling move")
         }
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Position {
-    x: usize,
-    y: usize
+    pub x: Option<usize>,
+    pub y: Option<usize>
 }
 
+
+#[derive(Debug, Eq, PartialEq)]
 pub enum MoveType {
-    Normal(Option<Position>, Option<Position>), // src_pos, dst_pos
+    Normal(Position, Position), // src_pos, dst_pos
     Castle(CastleType),
     Undefined
 }
 
+#[derive(Debug)]
 pub struct Move {
     pub move_type: MoveType,
     pub piece: Option<Piece>,
