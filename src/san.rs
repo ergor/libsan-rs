@@ -107,6 +107,18 @@ pub struct Position {
     pub y: Option<usize>
 }
 
+impl Position {
+    pub fn new(x: Option<usize>, y: Option<usize>) -> Position {
+        Position { x, y }
+    }
+
+    pub fn of(x: usize, y: usize) -> Position {
+        Position {
+            x: Some(x),
+            y: Some(y)
+        }
+    }
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum MoveType {
