@@ -101,6 +101,13 @@ impl StrEnum for CastleType {
     }
 }
 
+/**
+ * Defined as (x,y):
+ * 0,0 ... 7,0
+ *  .  \    .
+ *  .    \  .
+ * 0,7 ... 7,7
+ */
 #[derive(Debug, Eq, PartialEq)]
 pub struct Position {
     pub x: Option<usize>,
