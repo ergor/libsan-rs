@@ -2,7 +2,7 @@
 use super::*;
 #[test]
 fn test_castle_short() {
-    let m = super::parse("O-O").unwrap();
+    let m = Move::parse("O-O").unwrap();
     assert_eq!(m.move_type, MoveType::Castle(CastleType::Kingside));
     assert_eq!(m.piece, None);
     assert_eq!(m.promotion, None);
@@ -13,7 +13,7 @@ fn test_castle_short() {
 }
 #[test]
 fn test_castle_long() {
-    let m = super::parse("O-O-O").unwrap();
+    let m = Move::parse("O-O-O").unwrap();
     assert_eq!(m.move_type, MoveType::Castle(CastleType::Queenside));
     assert_eq!(m.piece, None);
     assert_eq!(m.promotion, None);
@@ -24,7 +24,7 @@ fn test_castle_long() {
 }
 #[test]
 fn test_pawn() {
-    let m = super::parse("e4").unwrap();
+    let m = Move::parse("e4").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, super::POS_NONE);
@@ -41,7 +41,7 @@ fn test_pawn() {
 }
 #[test]
 fn test_pawn_long() {
-    let m = super::parse("e2e4").unwrap();
+    let m = Move::parse("e2e4").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::of(4, 6));
@@ -58,7 +58,7 @@ fn test_pawn_long() {
 }
 #[test]
 fn test_piece() {
-    let m = super::parse("Qe4").unwrap();
+    let m = Move::parse("Qe4").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, super::POS_NONE);
@@ -75,7 +75,7 @@ fn test_piece() {
 }
 #[test]
 fn test_piece_file() {
-    let m = super::parse("Qbe4").unwrap();
+    let m = Move::parse("Qbe4").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(Some(1), None));
@@ -92,7 +92,7 @@ fn test_piece_file() {
 }
 #[test]
 fn test_piece_rank() {
-    let m = super::parse("Q1e4").unwrap();
+    let m = Move::parse("Q1e4").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(None, Some(7)));
@@ -109,7 +109,7 @@ fn test_piece_rank() {
 }
 #[test]
 fn test_piece_long() {
-    let m = super::parse("Qb1e4").unwrap();
+    let m = Move::parse("Qb1e4").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(Some(1), Some(7)));
@@ -126,7 +126,7 @@ fn test_piece_long() {
 }
 #[test]
 fn test_pawn_capture() {
-    let m = super::parse("exd4").unwrap();
+    let m = Move::parse("exd4").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(Some(4), None));
@@ -143,7 +143,7 @@ fn test_pawn_capture() {
 }
 #[test]
 fn test_pawn_capture_promotion() {
-    let m = super::parse("exd8=Q").unwrap();
+    let m = Move::parse("exd8=Q").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(Some(4), None));
@@ -160,7 +160,7 @@ fn test_pawn_capture_promotion() {
 }
 #[test]
 fn test_pawn_capture_long() {
-    let m = super::parse("e3xd4").unwrap();
+    let m = Move::parse("e3xd4").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(Some(4), Some(5)));
@@ -177,7 +177,7 @@ fn test_pawn_capture_long() {
 }
 #[test]
 fn test_piece_capture() {
-    let m = super::parse("Rxh3").unwrap();
+    let m = Move::parse("Rxh3").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(None, None));
@@ -194,7 +194,7 @@ fn test_piece_capture() {
 }
 #[test]
 fn test_piece_capture_file() {
-    let m = super::parse("Rexh3").unwrap();
+    let m = Move::parse("Rexh3").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(Some(4), None));
@@ -211,7 +211,7 @@ fn test_piece_capture_file() {
 }
 #[test]
 fn test_piece_capture_rank() {
-    let m = super::parse("R1xh3").unwrap();
+    let m = Move::parse("R1xh3").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(None, Some(7)));
@@ -228,7 +228,7 @@ fn test_piece_capture_rank() {
 }
 #[test]
 fn test_piece_capture_long() {
-    let m = super::parse("Re3xh3").unwrap();
+    let m = Move::parse("Re3xh3").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::of(4, 5));
@@ -245,7 +245,7 @@ fn test_piece_capture_long() {
 }
 #[test]
 fn test_pawn_promotion() {
-    let m = super::parse("d8=Q").unwrap();
+    let m = Move::parse("d8=Q").unwrap();
     match m.move_type {
         MoveType::Normal(src, dst) => {
             assert_eq!(src, Position::new(None, None));
@@ -263,7 +263,7 @@ fn test_pawn_promotion() {
 
 #[test]
 fn test_to_string() {
-    let s = super::to_string(Move {
+    let s = (Move {
         move_type: MoveType::Normal(Position::new(Some(4), None), Position::of(3,0)),
         piece: Some(Piece::Pawn),
         promotion: Some(Piece::Queen),
@@ -271,7 +271,7 @@ fn test_to_string() {
         is_capture: true,
         is_check: true,
         is_check_mate: false
-    });
+    }).to_string();
 
     assert_eq!(s, "exd8=Q+?!");
 }
