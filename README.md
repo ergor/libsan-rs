@@ -10,22 +10,16 @@ Add this to your `Cargo.toml`:
 san-rs = "0"
 ```
 
-then add this use declaration:
+Short example usage:
 
 ```rust
 use san_rs::*;
-```
 
-Parsing input string:
+fn main() {
+    // parse input string:
+    let move_data = Move::parse("Re4").unwrap(); // -> data struct
 
-```rust
-let move_data = Move::parse("Re4").unwrap();
-```
-
-Converting movement struct back to string:
-
-```rust
-let move_data = Move::new();
-// ...
-let san_string = Move::to_string(move_data);
+    // convert back to string:
+    let san_string = Move::to_string(move_data); // -> "Re4"
+}
 ```
