@@ -120,6 +120,19 @@ impl Position {
     }
 }
 
+impl ToString for Position {
+    fn to_string(&self) -> String {
+        let mut res = String::new();
+        if let Some(x) = self.x {
+            res.push(char::from(b'a' + (x as u8)));
+        }
+        if let Some(y) = self.y {
+            res.push(char::from(b'8' - (y as u8)));
+        }
+        res
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum MoveType {
     Normal(Position, Position), // src_pos, dst_pos

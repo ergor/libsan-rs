@@ -260,3 +260,18 @@ fn test_pawn_promotion() {
     assert_eq!(m.is_check, false);
     assert_eq!(m.is_check_mate, false);
 }
+
+#[test]
+fn test_to_string() {
+    let s = super::to_string(Move {
+        move_type: MoveType::Normal(Position::new(Some(4), None), Position::of(3,0)),
+        piece: Some(Piece::Pawn),
+        promotion: Some(Piece::Queen),
+        annotation: Some(Annotation::Interesting),
+        is_capture: true,
+        is_check: true,
+        is_check_mate: false
+    });
+
+    assert_eq!(s, "exd8=Q+?!");
+}

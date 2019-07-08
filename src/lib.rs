@@ -229,5 +229,35 @@ pub fn parse(value: &str) -> Result<Move, String> {
     Err(format!("could not parse: {}", value))
 }
 
+pub fn to_string(mov: Move) -> String {
+    let mut res = String::new();
+    match mov.move_type {
+        MoveType::Castle(t) => res.push_str(t.to_str()),
+        MoveType::Normal(src, dst) => { 
+            res.push_str(mov.piece.expect("NormalMove had None piece").to_str());
+            res.push_str(&src.to_string());
+            if mov.is_capture {
+                res.push('x');
+            }
+            res.push_str(&dst.to_string());
+        }
+        _ => panic!("MoveType not defined")
+    }
+    if let Some(piece) = mov.promotion {
+        res.push('=');
+        res.push_str(piece.to_str());
+    }
+    if mov.is_check {
+        res.push('+');
+    }
+    else if mov.is_check_mate {
+        res.push('#');
+    }
+    if let Some(ann) = mov.annotation {
+        res.push_str(ann.to_str());
+    }
+    return res;
+}
+
 #[cfg(test)]
 mod tests;
