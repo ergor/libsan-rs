@@ -1,6 +1,4 @@
 
-/// ported from https://github.com/chesszebra/standard-algebraic-notation
-
 mod san;
 use san::*;
 use regex::Regex;
@@ -41,9 +39,15 @@ macro_rules! annotation {
     };
 }
 
-const POS_NONE: Position = Position {x: None, y: None};
+macro_rules! promotion {
+    ($cap:expr, $i:expr) => {
+        Piece::from_str($cap.get($i).map_or("fail", |v| v.as_str())).ok();
+    };
+}
 
-pub fn parse(value: &str) -> Move {
+pub const POS_NONE: Position = Position {x: None, y: None};
+
+pub fn parse(value: &str) -> Result<Move, String> {
     let mut mov = Move::new();
 
     // Check for castling:
@@ -54,7 +58,7 @@ pub fn parse(value: &str) -> Move {
         mov.is_check = is_check!(cap, 2);
         mov.is_check_mate = is_check_mate!(cap, 2);
         mov.annotation = annotation!(cap, 3);
-        return mov;
+        return Ok(mov);
     }
 
     // Pawn movement:
@@ -66,7 +70,7 @@ pub fn parse(value: &str) -> Move {
         mov.is_check = is_check!(cap, 3);
         mov.is_check_mate = is_check_mate!(cap, 3);
         mov.annotation = annotation!(cap, 4);
-        return mov;
+        return Ok(mov);
     }
 
     // Pawn movement (long san):
@@ -78,7 +82,7 @@ pub fn parse(value: &str) -> Move {
         mov.is_check = is_check!(cap, 5);
         mov.is_check_mate = is_check_mate!(cap, 5);
         mov.annotation = annotation!(cap, 6);
-        return mov;
+        return Ok(mov);
     }
 
     // Piece movement:
@@ -90,7 +94,7 @@ pub fn parse(value: &str) -> Move {
         mov.is_check = is_check!(cap, 4);
         mov.is_check_mate = is_check_mate!(cap, 4);
         mov.annotation = annotation!(cap, 5);
-        return mov;
+        return Ok(mov);
     }
 
     // Piece movement from a specific column:
@@ -102,7 +106,7 @@ pub fn parse(value: &str) -> Move {
         mov.is_check = is_check!(cap, 5);
         mov.is_check_mate = is_check_mate!(cap, 5);
         mov.annotation = annotation!(cap, 6);
-        return mov;
+        return Ok(mov);
     }
 
     // Piece capture from a specific row:
@@ -114,7 +118,7 @@ pub fn parse(value: &str) -> Move {
         mov.is_check = is_check!(cap, 5);
         mov.is_check_mate = is_check_mate!(cap, 5);
         mov.annotation = annotation!(cap, 6);
-        return mov;
+        return Ok(mov);
     }
 
     // Piece movement from a specific column and row (long san):
@@ -126,130 +130,104 @@ pub fn parse(value: &str) -> Move {
         mov.is_check = is_check!(cap, 6);
         mov.is_check_mate = is_check_mate!(cap, 6);
         mov.annotation = annotation!(cap, 7);
-        return mov;
+        return Ok(mov);
     }
 
-    panic!("could not parse: {}", value);
+    // Pawn capture:
+    let re = Regex::new(r"^([a-h])x([a-h])([1-8])(?:=?([KQBNR]))?(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+    if re.is_match(value) {
+        let cap = re.captures(value).unwrap();
+        mov.piece = Some(Piece::Pawn);
+        mov.move_type = MoveType::Normal(Position::new(pos_col!(cap, 1), None), pos!(cap, 2, 3));
+        mov.is_capture = true;
+        mov.promotion = promotion!(cap, 4);
+        mov.is_check = is_check!(cap, 5);
+        mov.is_check_mate = is_check_mate!(cap, 5);
+        mov.annotation = annotation!(cap, 6);
+        return Ok(mov);
+    }
+
+    // Pawn capture (long san):
+    let re = Regex::new(r"^([a-h])([1-8])x([a-h])([1-8])(?:=?([KQBNR]))?(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+    if re.is_match(value) {
+        let cap = re.captures(value).unwrap();
+        mov.piece = Some(Piece::Pawn);
+        mov.move_type = MoveType::Normal(pos!(cap, 1, 2), pos!(cap, 3, 4));
+        mov.is_capture = true;
+        mov.promotion = promotion!(cap, 5);
+        mov.is_check = is_check!(cap, 6);
+        mov.is_check_mate = is_check_mate!(cap, 6);
+        mov.annotation = annotation!(cap, 7);
+        return Ok(mov);
+    }
+
+    // Piece capture:
+    let re = Regex::new(r"^([KQBNR])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+    if re.is_match(value) {
+        let cap = re.captures(value).unwrap();
+        mov.piece = Piece::from_str(&cap[1]).ok();
+        mov.move_type = MoveType::Normal(POS_NONE, pos!(cap, 2, 3));
+        mov.is_capture = true;
+        mov.is_check = is_check!(cap, 4);
+        mov.is_check_mate = is_check_mate!(cap, 4);
+        mov.annotation = annotation!(cap, 5);
+        return Ok(mov);
+    }
+
+    // Piece capture from a specific column:
+    let re = Regex::new(r"^([KQBNR])([a-h])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+    if re.is_match(value) {
+        let cap = re.captures(value).unwrap();
+        mov.piece = Piece::from_str(&cap[1]).ok();
+        mov.move_type = MoveType::Normal(Position::new(pos_col!(cap, 2), None), pos!(cap, 3, 4));
+        mov.is_capture = true;
+        mov.is_check = is_check!(cap, 5);
+        mov.is_check_mate = is_check_mate!(cap, 5);
+        mov.annotation = annotation!(cap, 6);
+        return Ok(mov);
+    }
+
+    // Piece capture from a specific row:
+    let re = Regex::new(r"^([KQBNR])([0-9])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+    if re.is_match(value) {
+        let cap = re.captures(value).unwrap();
+        mov.piece = Piece::from_str(&cap[1]).ok();
+        mov.move_type = MoveType::Normal(Position::new(None, pos_row!(cap, 2)), pos!(cap, 3, 4));
+        mov.is_capture = true;
+        mov.is_check = is_check!(cap, 5);
+        mov.is_check_mate = is_check_mate!(cap, 5);
+        mov.annotation = annotation!(cap, 6);
+        return Ok(mov);
+    }
+
+    // Piece capture from a specific column and row (long san):
+    let re = Regex::new(r"^([KQBNR])([a-h])([0-9])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+    if re.is_match(value) {
+        let cap = re.captures(value).unwrap();
+        mov.piece = Piece::from_str(&cap[1]).ok();
+        mov.move_type = MoveType::Normal(pos!(cap, 2, 3), pos!(cap, 4, 5));
+        mov.is_capture = true;
+        mov.is_check = is_check!(cap, 6);
+        mov.is_check_mate = is_check_mate!(cap, 6);
+        mov.annotation = annotation!(cap, 7);
+        return Ok(mov);
+    }
+
+    // Check for pawn promotion:
+    let re = Regex::new(r"^([a-h])([1-8])=?([KQBNR])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+    if re.is_match(value) {
+        let cap = re.captures(value).unwrap();
+        mov.piece = Some(Piece::Pawn);
+        mov.move_type = MoveType::Normal(POS_NONE, pos!(cap, 1, 2));
+        mov.promotion = promotion!(cap, 3);
+        mov.is_check = is_check!(cap, 4);
+        mov.is_check_mate = is_check_mate!(cap, 4);
+        mov.annotation = annotation!(cap, 5);
+        return Ok(mov);
+    }
+
+    Err(format!("could not parse: {}", value))
 }
 
-/* TESTS ---------------------------------------------------------------------*/
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_castle_short() {
-        let m = super::parse("O-O");
-        assert_eq!(m.move_type, MoveType::Castle(CastleType::Kingside));
-        assert_eq!(m.piece, None);
-        assert_eq!(m.annotation, None);
-        assert_eq!(m.is_capture, false);
-        assert_eq!(m.is_check, false);
-        assert_eq!(m.is_check_mate, false);
-    }
-    #[test]
-    fn test_castle_long() {
-        let m = super::parse("O-O-O");
-        assert_eq!(m.move_type, MoveType::Castle(CastleType::Queenside));
-        assert_eq!(m.piece, None);
-        assert_eq!(m.annotation, None);
-        assert_eq!(m.is_capture, false);
-        assert_eq!(m.is_check, false);
-        assert_eq!(m.is_check_mate, false);
-    }
-    #[test]
-    fn test_pawn() {
-        let m = super::parse("e4");
-        match m.move_type {
-            MoveType::Normal(src, dst) => {
-                assert_eq!(src, super::POS_NONE);
-                assert_eq!(dst, Position::of(4, 4));
-            },
-            _ => assert!(false)
-        }
-        assert_eq!(m.piece, Some(Piece::Pawn));
-        assert_eq!(m.annotation, None);
-        assert_eq!(m.is_capture, false);
-        assert_eq!(m.is_check, false);
-        assert_eq!(m.is_check_mate, false);
-    }
-    #[test]
-    fn test_pawn_long() {
-        let m = super::parse("e2e4");
-        match m.move_type {
-            MoveType::Normal(src, dst) => {
-                assert_eq!(src, Position::of(4, 6));
-                assert_eq!(dst, Position::of(4, 4));
-            },
-            _ => assert!(false)
-        }
-        assert_eq!(m.piece, Some(Piece::Pawn));
-        assert_eq!(m.annotation, None);
-        assert_eq!(m.is_capture, false);
-        assert_eq!(m.is_check, false);
-        assert_eq!(m.is_check_mate, false);
-    }
-    #[test]
-    fn test_piece() {
-        let m = super::parse("Qe4");
-        match m.move_type {
-            MoveType::Normal(src, dst) => {
-                assert_eq!(src, super::POS_NONE);
-                assert_eq!(dst, Position::of(4, 4));
-            },
-            _ => assert!(false)
-        }
-        assert_eq!(m.piece, Some(Piece::Queen));
-        assert_eq!(m.annotation, None);
-        assert_eq!(m.is_capture, false);
-        assert_eq!(m.is_check, false);
-        assert_eq!(m.is_check_mate, false);
-    }
-    #[test]
-    fn test_piece_file() {
-        let m = super::parse("Qbe4");
-        match m.move_type {
-            MoveType::Normal(src, dst) => {
-                assert_eq!(src, Position::new(Some(1), None));
-                assert_eq!(dst, Position::of(4, 4));
-            },
-            _ => assert!(false)
-        }
-        assert_eq!(m.piece, Some(Piece::Queen));
-        assert_eq!(m.annotation, None);
-        assert_eq!(m.is_capture, false);
-        assert_eq!(m.is_check, false);
-        assert_eq!(m.is_check_mate, false);
-    }
-    #[test]
-    fn test_piece_rank() {
-        let m = super::parse("Q1e4");
-        match m.move_type {
-            MoveType::Normal(src, dst) => {
-                assert_eq!(src, Position::new(None, Some(7)));
-                assert_eq!(dst, Position::of(4, 4));
-            },
-            _ => assert!(false)
-        }
-        assert_eq!(m.piece, Some(Piece::Queen));
-        assert_eq!(m.annotation, None);
-        assert_eq!(m.is_capture, false);
-        assert_eq!(m.is_check, false);
-        assert_eq!(m.is_check_mate, false);
-    }
-    #[test]
-    fn test_piece_long() {
-        let m = super::parse("Qb1e4");
-        match m.move_type {
-            MoveType::Normal(src, dst) => {
-                assert_eq!(src, Position::new(Some(1), Some(7)));
-                assert_eq!(dst, Position::of(4, 4));
-            },
-            _ => assert!(false)
-        }
-        assert_eq!(m.piece, Some(Piece::Queen));
-        assert_eq!(m.annotation, None);
-        assert_eq!(m.is_capture, false);
-        assert_eq!(m.is_check, false);
-        assert_eq!(m.is_check_mate, false);
-    }
-}
+mod tests;

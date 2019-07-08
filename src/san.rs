@@ -131,6 +131,7 @@ pub enum MoveType {
 pub struct Move {
     pub move_type: MoveType,
     pub piece: Option<Piece>,
+    pub promotion: Option<Piece>,
     pub annotation: Option<Annotation>,
     pub is_capture: bool,
     pub is_check: bool,
@@ -142,6 +143,7 @@ impl Move {
         Move {
             move_type: MoveType::Undefined,
             piece: None,
+            promotion: None,
             annotation: None,
             is_capture: false,
             is_check: false,
