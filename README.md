@@ -21,6 +21,6 @@ fn main() {
     let move_data = Move::parse("Re4").unwrap(); // -> data struct
 
     // convert back to string:
-    let san_string = Move::to_string(move_data); // -> "Re4"
+    let san_string = move_data.compile().unwrap(); // -> "Re4"
 }
 ```

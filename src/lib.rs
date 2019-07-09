@@ -1,4 +1,8 @@
 
+//! Module for parsing standard algebraic notation in chess.
+//! Supports parsing SAN strings into usable data structures, 
+//! as well as converting the data structures back to string.
+
 use regex::Regex;
 
 macro_rules! pos_col {
@@ -19,15 +23,18 @@ macro_rules! pos {
     };
 }
 
-macro_rules! is_check {
+macro_rules! check_type {
     ($cap:expr, $i:expr) => {
-        $cap.get($i).map_or("", |v| v.as_str()) == "+"
-    };
-}
-
-macro_rules! is_check_mate {
-    ($cap:expr, $i:expr) => {
-        $cap.get($i).map_or("", |v| v.as_str()) == "#"
+        {
+            let val = $cap.get($i).map_or("", |v| v.as_str());
+            if val == "+" {
+                Some(CheckType::Check);
+            }
+            else if val == "#" {
+                Some(CheckType::Mate);
+            }
+            None
+        }
     };
 }
 
@@ -43,8 +50,14 @@ macro_rules! promotion {
     };
 }
 
+/**
+ * Represents a completely unspecified position.
+ */
 pub const POS_NONE: Position = Position {x: None, y: None};
 
+/**
+ * Methods for converting between internal and string representations.
+ */
 trait StrEnum {
     type Output;
     fn to_str(&self) -> &str;
@@ -148,11 +161,9 @@ impl StrEnum for CastleType {
 }
 
 /**
- * Defined as (x,y):
- * 0,0 ... 7,0
- *  .  \    .
- *  .    \  .
- * 0,7 ... 7,7
+ * Represents a square on the board.
+ * x -> file,
+ * y -> rank.
  */
 #[derive(Debug, Eq, PartialEq)]
 pub struct Position {
@@ -192,69 +203,89 @@ pub enum MoveType {
      * Order: (origin, destination)
      */
     Normal(Position, Position),
-    Castle(CastleType),
-    Undefined
+    Castle(CastleType)
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum CheckType {
+    Check,
+    Mate
+}
+
+/**
+ * Data structure representing a single move.
+ * 
+ * The coordinates are defined with the origin (0,0) as the top left corner,
+ * and (7,7) as the bottom right corner, with white pieces in bottom rows.
+ */
 #[derive(Debug)]
 pub struct Move {
-    pub move_type: MoveType,
+    pub move_type: Option<MoveType>,
     pub piece: Option<Piece>,
     pub promotion: Option<Piece>,
     pub annotation: Option<Annotation>,
-    pub is_capture: bool,
-    pub is_check: bool,
-    pub is_check_mate: bool,
-}
-
-impl ToString for Move {
-    fn to_string(&self) -> String {
-        let mut res = String::new();
-        match &self.move_type {
-            MoveType::Castle(t) => res.push_str(t.to_str()),
-            MoveType::Normal(src, dst) => {
-                match &self.piece {
-                    Some(p) => res.push_str(p.to_str()),
-                    None => panic!("Move: expected Some(Piece), got None")
-                }
-                res.push_str(&src.to_string());
-                if self.is_capture {
-                    res.push('x');
-                }
-                res.push_str(&dst.to_string());
-            }
-            _ => panic!("MoveType not defined")
-        }
-        if let Some(piece) = &self.promotion {
-            res.push('=');
-            res.push_str(piece.to_str());
-        }
-        if self.is_check {
-            res.push('+');
-        }
-        else if self.is_check_mate {
-            res.push('#');
-        }
-        if let Some(ann) = &self.annotation {
-            res.push_str(ann.to_str());
-        }
-        return res;
-    }
+    pub check_type: Option<CheckType>,
+    pub is_capture: bool
 }
 
 impl Move {
     pub fn new() -> Move {
         Move {
-            move_type: MoveType::Undefined,
+            move_type: None,
             piece: None,
             promotion: None,
             annotation: None,
-            is_capture: false,
-            is_check: false,
-            is_check_mate: false
+            check_type: None,
+            is_capture: false
         }
     }
 
+    /**
+     * Compiles the data in a Move struct into a SAN string.
+     */
+    pub fn compile(&self) -> Result<String, &str> {
+        let mut res = String::new();
+
+        match &self.move_type {
+            None => return Err("move_type was None; expected Some(MoveType)"),
+            Some(mt) => match mt {
+                MoveType::Castle(t) => res.push_str(t.to_str()),
+                MoveType::Normal(src, dst) => {
+                    match &self.piece {
+                        Some(p) => res.push_str(p.to_str()),
+                        None => return Err("Piece was None; expected Some(Piece)")
+                    }
+                    res.push_str(&src.to_string());
+                    if self.is_capture {
+                        res.push('x');
+                    }
+                    res.push_str(&dst.to_string());
+                }
+            }
+        }
+
+        if let Some(piece) = &self.promotion {
+            res.push('=');
+            res.push_str(piece.to_str());
+        }
+
+        if let Some(ct) = &self.check_type {
+            match ct {
+                CheckType::Check => res.push('+'),
+                CheckType::Mate => res.push('#')
+            }
+        }
+
+        if let Some(ann) = &self.annotation {
+            res.push_str(ann.to_str());
+        }
+
+        return Ok(res);
+    }
+
+    /**
+     * Parses a SAN string and creates a Move data struct.
+     */
     pub fn parse(value: &str) -> Result<Move, String> {
         let mut mov = Move::new();
 
@@ -262,9 +293,8 @@ impl Move {
         let re = Regex::new(r"^(O-O|O-O-O)(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
-            mov.move_type = MoveType::Castle(CastleType::from_str(&cap[1]).unwrap());
-            mov.is_check = is_check!(cap, 2);
-            mov.is_check_mate = is_check_mate!(cap, 2);
+            mov.move_type = Some(MoveType::Castle(CastleType::from_str(&cap[1]).unwrap()));
+            mov.check_type = check_type!(cap, 2);
             mov.annotation = annotation!(cap, 3);
             return Ok(mov);
         }
@@ -274,9 +304,8 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Some(Piece::Pawn);
-            mov.move_type = MoveType::Normal(POS_NONE, pos!(cap, 1, 2));
-            mov.is_check = is_check!(cap, 3);
-            mov.is_check_mate = is_check_mate!(cap, 3);
+            mov.move_type = Some(MoveType::Normal(POS_NONE, pos!(cap, 1, 2)));
+            mov.check_type = check_type!(cap, 3);
             mov.annotation = annotation!(cap, 4);
             return Ok(mov);
         }
@@ -286,9 +315,8 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Some(Piece::Pawn);
-            mov.move_type = MoveType::Normal(pos!(cap, 1, 2), pos!(cap, 3, 4));
-            mov.is_check = is_check!(cap, 5);
-            mov.is_check_mate = is_check_mate!(cap, 5);
+            mov.move_type = Some(MoveType::Normal(pos!(cap, 1, 2), pos!(cap, 3, 4)));
+            mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
             return Ok(mov);
         }
@@ -298,9 +326,8 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Piece::from_str(&cap[1]).ok();
-            mov.move_type = MoveType::Normal(POS_NONE, pos!(cap, 2, 3));
-            mov.is_check = is_check!(cap, 4);
-            mov.is_check_mate = is_check_mate!(cap, 4);
+            mov.move_type = Some(MoveType::Normal(POS_NONE, pos!(cap, 2, 3)));
+            mov.check_type = check_type!(cap, 4);
             mov.annotation = annotation!(cap, 5);
             return Ok(mov);
         }
@@ -310,9 +337,8 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Piece::from_str(&cap[1]).ok();
-            mov.move_type = MoveType::Normal(Position::new(pos_col!(cap, 2), None), pos!(cap, 3, 4));
-            mov.is_check = is_check!(cap, 5);
-            mov.is_check_mate = is_check_mate!(cap, 5);
+            mov.move_type = Some(MoveType::Normal(Position::new(pos_col!(cap, 2), None), pos!(cap, 3, 4)));
+            mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
             return Ok(mov);
         }
@@ -322,9 +348,8 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Piece::from_str(&cap[1]).ok();
-            mov.move_type = MoveType::Normal(Position::new(None, pos_row!(cap, 2)), pos!(cap, 3, 4));
-            mov.is_check = is_check!(cap, 5);
-            mov.is_check_mate = is_check_mate!(cap, 5);
+            mov.move_type = Some(MoveType::Normal(Position::new(None, pos_row!(cap, 2)), pos!(cap, 3, 4)));
+            mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
             return Ok(mov);
         }
@@ -334,9 +359,8 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Piece::from_str(&cap[1]).ok();
-            mov.move_type = MoveType::Normal(pos!(cap, 2, 3), pos!(cap, 4, 5));
-            mov.is_check = is_check!(cap, 6);
-            mov.is_check_mate = is_check_mate!(cap, 6);
+            mov.move_type = Some(MoveType::Normal(pos!(cap, 2, 3), pos!(cap, 4, 5)));
+            mov.check_type = check_type!(cap, 6);
             mov.annotation = annotation!(cap, 7);
             return Ok(mov);
         }
@@ -346,11 +370,10 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Some(Piece::Pawn);
-            mov.move_type = MoveType::Normal(Position::new(pos_col!(cap, 1), None), pos!(cap, 2, 3));
+            mov.move_type = Some(MoveType::Normal(Position::new(pos_col!(cap, 1), None), pos!(cap, 2, 3)));
             mov.is_capture = true;
             mov.promotion = promotion!(cap, 4);
-            mov.is_check = is_check!(cap, 5);
-            mov.is_check_mate = is_check_mate!(cap, 5);
+            mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
             return Ok(mov);
         }
@@ -360,11 +383,10 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Some(Piece::Pawn);
-            mov.move_type = MoveType::Normal(pos!(cap, 1, 2), pos!(cap, 3, 4));
+            mov.move_type = Some(MoveType::Normal(pos!(cap, 1, 2), pos!(cap, 3, 4)));
             mov.is_capture = true;
             mov.promotion = promotion!(cap, 5);
-            mov.is_check = is_check!(cap, 6);
-            mov.is_check_mate = is_check_mate!(cap, 6);
+            mov.check_type = check_type!(cap, 6);
             mov.annotation = annotation!(cap, 7);
             return Ok(mov);
         }
@@ -374,10 +396,9 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Piece::from_str(&cap[1]).ok();
-            mov.move_type = MoveType::Normal(POS_NONE, pos!(cap, 2, 3));
+            mov.move_type = Some(MoveType::Normal(POS_NONE, pos!(cap, 2, 3)));
             mov.is_capture = true;
-            mov.is_check = is_check!(cap, 4);
-            mov.is_check_mate = is_check_mate!(cap, 4);
+            mov.check_type = check_type!(cap, 4);
             mov.annotation = annotation!(cap, 5);
             return Ok(mov);
         }
@@ -387,10 +408,9 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Piece::from_str(&cap[1]).ok();
-            mov.move_type = MoveType::Normal(Position::new(pos_col!(cap, 2), None), pos!(cap, 3, 4));
+            mov.move_type = Some(MoveType::Normal(Position::new(pos_col!(cap, 2), None), pos!(cap, 3, 4)));
             mov.is_capture = true;
-            mov.is_check = is_check!(cap, 5);
-            mov.is_check_mate = is_check_mate!(cap, 5);
+            mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
             return Ok(mov);
         }
@@ -400,10 +420,9 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Piece::from_str(&cap[1]).ok();
-            mov.move_type = MoveType::Normal(Position::new(None, pos_row!(cap, 2)), pos!(cap, 3, 4));
+            mov.move_type = Some(MoveType::Normal(Position::new(None, pos_row!(cap, 2)), pos!(cap, 3, 4)));
             mov.is_capture = true;
-            mov.is_check = is_check!(cap, 5);
-            mov.is_check_mate = is_check_mate!(cap, 5);
+            mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
             return Ok(mov);
         }
@@ -413,10 +432,9 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Piece::from_str(&cap[1]).ok();
-            mov.move_type = MoveType::Normal(pos!(cap, 2, 3), pos!(cap, 4, 5));
+            mov.move_type = Some(MoveType::Normal(pos!(cap, 2, 3), pos!(cap, 4, 5)));
             mov.is_capture = true;
-            mov.is_check = is_check!(cap, 6);
-            mov.is_check_mate = is_check_mate!(cap, 6);
+            mov.check_type = check_type!(cap, 6);
             mov.annotation = annotation!(cap, 7);
             return Ok(mov);
         }
@@ -426,10 +444,9 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             mov.piece = Some(Piece::Pawn);
-            mov.move_type = MoveType::Normal(POS_NONE, pos!(cap, 1, 2));
+            mov.move_type = Some(MoveType::Normal(POS_NONE, pos!(cap, 1, 2)));
             mov.promotion = promotion!(cap, 3);
-            mov.is_check = is_check!(cap, 4);
-            mov.is_check_mate = is_check_mate!(cap, 4);
+            mov.check_type = check_type!(cap, 4);
             mov.annotation = annotation!(cap, 5);
             return Ok(mov);
         }
