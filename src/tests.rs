@@ -3,14 +3,14 @@ use super::*;
 
 macro_rules! assert_all {
     ($mv:expr, $src:expr, $dst:expr, $piece:expr, $promo:expr, $ann:expr, $check:expr, $capt:expr) => {
-        match $mv.move_type {
-            Some(MoveType::Normal(src, dst)) => {
+        match $mv.move_kind {
+            MoveKind::Normal(src, dst) => {
                 assert_eq!(src, $src);
                 assert_eq!(dst, $dst);
             },
             _ => assert!(false)
         }
-        assert_eq!($mv.piece, Some($piece));
+        assert_eq!($mv.piece, $piece);
         assert_eq!($mv.promotion, $promo);
         assert_eq!($mv.annotation, $ann);
         assert_eq!($mv.check_type, $check);
@@ -32,8 +32,8 @@ macro_rules! assert_capture {
 #[test]
 fn test_castle_short() {
     let m = Move::parse("O-O").unwrap();
-    assert_eq!(m.move_type, Some(MoveType::Castle(CastleType::Kingside)));
-    assert_eq!(m.piece, None);
+    assert_eq!(m.move_kind, MoveKind::Castle(CastleType::Kingside));
+    assert_eq!(m.piece, Piece::King);
     assert_eq!(m.promotion, None);
     assert_eq!(m.annotation, None);
     assert_eq!(m.check_type, None);
@@ -42,8 +42,8 @@ fn test_castle_short() {
 #[test]
 fn test_castle_long() {
     let m = Move::parse("O-O-O").unwrap();
-    assert_eq!(m.move_type, Some(MoveType::Castle(CastleType::Queenside)));
-    assert_eq!(m.piece, None);
+    assert_eq!(m.move_kind, MoveKind::Castle(CastleType::Queenside));
+    assert_eq!(m.piece, Piece::King);
     assert_eq!(m.promotion, None);
     assert_eq!(m.annotation, None);
     assert_eq!(m.check_type, None);
@@ -159,8 +159,8 @@ fn test_pawn_promotion() {
 #[test]
 fn test_compile() {
     let s = (Move {
-        move_type: Some(MoveType::Normal(Position::new(Some(4), None), Position::of(3,0))),
-        piece: Some(Piece::Pawn),
+        move_kind: MoveKind::Normal(Position::new(Some(4), None), Position::of(3,0)),
+        piece: Piece::Pawn,
         promotion: Some(Piece::Queen),
         annotation: Some(Annotation::Interesting),
         check_type: Some(CheckType::Check),
