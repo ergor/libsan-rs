@@ -165,7 +165,7 @@ fn test_compile() {
         annotation: Some(Annotation::Interesting),
         check_type: Some(CheckType::Check),
         is_capture: true
-    }).compile().unwrap();
+    }).compile();
 
     assert_eq!(s, "exd8=Q+?!");
 }

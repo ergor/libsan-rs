@@ -251,7 +251,7 @@ impl Move {
     /**
      * Compiles the data in a Move struct into a SAN string.
      */
-    pub fn compile(&self) -> Result<String> {
+    pub fn compile(&self) -> String {
         let mut res = String::new();
 
         match &self.move_kind {
@@ -283,7 +283,7 @@ impl Move {
             res.push_str(ann.to_str());
         }
 
-        return Ok(res);
+        return res;
     }
 
     /**
