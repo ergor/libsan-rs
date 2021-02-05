@@ -1,6 +1,5 @@
-
 //! Module for parsing standard algebraic notation in chess.
-//! Supports parsing SAN strings into usable data structures, 
+//! Supports parsing SAN strings into usable data structures,
 //! as well as converting the data structures back to string.
 
 use regex::Regex;
@@ -24,18 +23,15 @@ macro_rules! pos {
 }
 
 macro_rules! check_type {
-    ($cap:expr, $i:expr) => {
-        {
-            let val = $cap.get($i).map_or("", |v| v.as_str());
-            if val == "+" {
-                Some(CheckType::Check);
-            }
-            else if val == "#" {
-                Some(CheckType::Mate);
-            }
-            None
+    ($cap:expr, $i:expr) => {{
+        let val = $cap.get($i).map_or("", |v| v.as_str());
+        if val == "+" {
+            Some(CheckType::Check);
+        } else if val == "#" {
+            Some(CheckType::Mate);
         }
-    };
+        None
+    }};
 }
 
 macro_rules! annotation {
@@ -53,12 +49,19 @@ macro_rules! promotion {
 /**
  * Represents a completely unspecified position.
  */
-pub const POS_NONE: Position = Position {x: None, y: None};
+pub const POS_NONE: Position = Position { x: None, y: None };
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum SanError {
     IllegalInput(String),
     RegexExhausted(String),
+}
+
+use std::fmt::{self, Display, Formatter};
+impl Display for SanError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl std::error::Error for SanError {}
@@ -81,7 +84,7 @@ pub enum Piece {
     King,
     Knight,
     Queen,
-    Rook
+    Rook,
 }
 
 impl StrEnum for Piece {
@@ -94,7 +97,7 @@ impl StrEnum for Piece {
             Piece::King => "K",
             Piece::Knight => "N",
             Piece::Queen => "Q",
-            Piece::Rook => "R"
+            Piece::Rook => "R",
         }
     }
 
@@ -106,7 +109,7 @@ impl StrEnum for Piece {
             "N" => Ok(Piece::Knight),
             "Q" => Ok(Piece::Queen),
             "R" => Ok(Piece::Rook),
-            _ => Err(SanError::IllegalInput(format!("invalid piece: {}", value)))
+            _ => Err(SanError::IllegalInput(format!("invalid piece: {}", value))),
         }
     }
 }
@@ -117,7 +120,7 @@ pub enum Annotation {
     Mistake,
     Interesting,
     Good,
-    Brilliant
+    Brilliant,
 }
 
 impl StrEnum for Annotation {
@@ -129,7 +132,7 @@ impl StrEnum for Annotation {
             Annotation::Mistake => "?",
             Annotation::Interesting => "?!",
             Annotation::Good => "!",
-            Annotation::Brilliant => "!!"
+            Annotation::Brilliant => "!!",
         }
     }
 
@@ -140,7 +143,10 @@ impl StrEnum for Annotation {
             "?!" => Ok(Annotation::Interesting),
             "!" => Ok(Annotation::Good),
             "!!" => Ok(Annotation::Brilliant),
-            _ => Err(SanError::IllegalInput(format!("invalid annotation: {}", value)))
+            _ => Err(SanError::IllegalInput(format!(
+                "invalid annotation: {}",
+                value
+            ))),
         }
     }
 }
@@ -148,7 +154,7 @@ impl StrEnum for Annotation {
 #[derive(Debug, Eq, PartialEq)]
 pub enum CastleType {
     Kingside,
-    Queenside
+    Queenside,
 }
 
 impl StrEnum for CastleType {
@@ -157,7 +163,7 @@ impl StrEnum for CastleType {
     fn to_str(&self) -> &str {
         match self {
             CastleType::Kingside => "O-O",
-            CastleType::Queenside => "O-O-O"
+            CastleType::Queenside => "O-O-O",
         }
     }
 
@@ -165,7 +171,10 @@ impl StrEnum for CastleType {
         match value {
             "O-O" => Ok(CastleType::Kingside),
             "O-O-O" => Ok(CastleType::Queenside),
-            _ => Err(SanError::IllegalInput(format!("invalid castling move: {}", value)))
+            _ => Err(SanError::IllegalInput(format!(
+                "invalid castling move: {}",
+                value
+            ))),
         }
     }
 }
@@ -178,7 +187,7 @@ impl StrEnum for CastleType {
 #[derive(Debug, Eq, PartialEq)]
 pub struct Position {
     pub x: Option<usize>,
-    pub y: Option<usize>
+    pub y: Option<usize>,
 }
 
 impl Position {
@@ -189,7 +198,7 @@ impl Position {
     pub fn of(x: usize, y: usize) -> Position {
         Position {
             x: Some(x),
-            y: Some(y)
+            y: Some(y),
         }
     }
 }
@@ -213,18 +222,18 @@ pub enum MoveKind {
      * Order: (origin, destination)
      */
     Normal(Position, Position),
-    Castle(CastleType)
+    Castle(CastleType),
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum CheckType {
     Check,
-    Mate
+    Mate,
 }
 
 /**
  * Data structure representing a single move.
- * 
+ *
  * The coordinates are defined with the origin (0,0) as the top left corner,
  * and (7,7) as the bottom right corner, with white pieces in bottom rows.
  */
@@ -235,7 +244,7 @@ pub struct Move {
     pub promotion: Option<Piece>,
     pub annotation: Option<Annotation>,
     pub check_type: Option<CheckType>,
-    pub is_capture: bool
+    pub is_capture: bool,
 }
 
 impl Move {
@@ -246,7 +255,7 @@ impl Move {
             promotion: None,
             annotation: None,
             check_type: None,
-            is_capture: false
+            is_capture: false,
         }
     }
 
@@ -267,7 +276,6 @@ impl Move {
                 res.push_str(&dst.to_string());
             }
         }
-        
 
         if let Some(piece) = &self.promotion {
             res.push('=');
@@ -277,7 +285,7 @@ impl Move {
         if let Some(ct) = &self.check_type {
             match ct {
                 CheckType::Check => res.push('+'),
-                CheckType::Mate => res.push('#')
+                CheckType::Mate => res.push('#'),
             }
         }
 
@@ -292,14 +300,14 @@ impl Move {
      * Parses a SAN string and creates a Move data struct.
      */
     pub fn parse(value: &str) -> Result<Move> {
-
         // Check for castling:
         let re = Regex::new(r"^(O-O|O-O-O)(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::King, 
-                MoveKind::Castle(CastleType::from_str(&cap[1]) ?));
+                Piece::King,
+                MoveKind::Castle(CastleType::from_str(&cap[1])?),
+            );
             mov.check_type = check_type!(cap, 2);
             mov.annotation = annotation!(cap, 3);
             return Ok(mov);
@@ -309,9 +317,7 @@ impl Move {
         let re = Regex::new(r"^([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
-            let mut mov = Move::new(
-                Piece::Pawn,
-                MoveKind::Normal(POS_NONE, pos!(cap, 1, 2)));
+            let mut mov = Move::new(Piece::Pawn, MoveKind::Normal(POS_NONE, pos!(cap, 1, 2)));
             mov.check_type = check_type!(cap, 3);
             mov.annotation = annotation!(cap, 4);
             return Ok(mov);
@@ -323,7 +329,8 @@ impl Move {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
                 Piece::Pawn,
-                MoveKind::Normal(pos!(cap, 1, 2), pos!(cap, 3, 4)));
+                MoveKind::Normal(pos!(cap, 1, 2), pos!(cap, 3, 4)),
+            );
             mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
             return Ok(mov);
@@ -334,56 +341,65 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::from_str(&cap[1]) ?, 
-                MoveKind::Normal(POS_NONE, pos!(cap, 2, 3)));
+                Piece::from_str(&cap[1])?,
+                MoveKind::Normal(POS_NONE, pos!(cap, 2, 3)),
+            );
             mov.check_type = check_type!(cap, 4);
             mov.annotation = annotation!(cap, 5);
             return Ok(mov);
         }
 
         // Piece movement from a specific column:
-        let re = Regex::new(r"^([KQBNR])([a-h])([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+        let re =
+            Regex::new(r"^([KQBNR])([a-h])([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::from_str(&cap[1]) ?, 
-                MoveKind::Normal(Position::new(pos_col!(cap, 2), None), pos!(cap, 3, 4)));
+                Piece::from_str(&cap[1])?,
+                MoveKind::Normal(Position::new(pos_col!(cap, 2), None), pos!(cap, 3, 4)),
+            );
             mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
             return Ok(mov);
         }
 
         // Piece movement from a specific row:
-        let re = Regex::new(r"^([KQBNR])([0-9])([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+        let re =
+            Regex::new(r"^([KQBNR])([0-9])([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::from_str(&cap[1]) ?, 
-                MoveKind::Normal(Position::new(None, pos_row!(cap, 2)), pos!(cap, 3, 4)));
+                Piece::from_str(&cap[1])?,
+                MoveKind::Normal(Position::new(None, pos_row!(cap, 2)), pos!(cap, 3, 4)),
+            );
             mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
             return Ok(mov);
         }
 
         // Piece movement from a specific column and row (long san):
-        let re = Regex::new(r"^([KQBNR])([a-h])([0-9])([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+        let re = Regex::new(r"^([KQBNR])([a-h])([0-9])([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$")
+            .unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::from_str(&cap[1]) ?, 
-                MoveKind::Normal(pos!(cap, 2, 3), pos!(cap, 4, 5)));
+                Piece::from_str(&cap[1])?,
+                MoveKind::Normal(pos!(cap, 2, 3), pos!(cap, 4, 5)),
+            );
             mov.check_type = check_type!(cap, 6);
             mov.annotation = annotation!(cap, 7);
             return Ok(mov);
         }
 
         // Pawn capture:
-        let re = Regex::new(r"^([a-h])x([a-h])([1-8])(?:=?([KQBNR]))?(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+        let re = Regex::new(r"^([a-h])x([a-h])([1-8])(?:=?([KQBNR]))?(\+|\#)?(\?\?|\?|\?!|!|!!)?$")
+            .unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::Pawn, 
-                MoveKind::Normal(Position::new(pos_col!(cap, 1), None), pos!(cap, 2, 3)));
+                Piece::Pawn,
+                MoveKind::Normal(Position::new(pos_col!(cap, 1), None), pos!(cap, 2, 3)),
+            );
             mov.is_capture = true;
             mov.promotion = promotion!(cap, 4);
             mov.check_type = check_type!(cap, 5);
@@ -392,12 +408,16 @@ impl Move {
         }
 
         // Pawn capture (long san):
-        let re = Regex::new(r"^([a-h])([1-8])x([a-h])([1-8])(?:=?([KQBNR]))?(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+        let re = Regex::new(
+            r"^([a-h])([1-8])x([a-h])([1-8])(?:=?([KQBNR]))?(\+|\#)?(\?\?|\?|\?!|!|!!)?$",
+        )
+        .unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::Pawn, 
-                MoveKind::Normal(pos!(cap, 1, 2), pos!(cap, 3, 4)));
+                Piece::Pawn,
+                MoveKind::Normal(pos!(cap, 1, 2), pos!(cap, 3, 4)),
+            );
             mov.is_capture = true;
             mov.promotion = promotion!(cap, 5);
             mov.check_type = check_type!(cap, 6);
@@ -410,8 +430,9 @@ impl Move {
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::from_str(&cap[1]) ?, 
-                MoveKind::Normal(POS_NONE, pos!(cap, 2, 3)));
+                Piece::from_str(&cap[1])?,
+                MoveKind::Normal(POS_NONE, pos!(cap, 2, 3)),
+            );
             mov.is_capture = true;
             mov.check_type = check_type!(cap, 4);
             mov.annotation = annotation!(cap, 5);
@@ -419,12 +440,14 @@ impl Move {
         }
 
         // Piece capture from a specific column:
-        let re = Regex::new(r"^([KQBNR])([a-h])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+        let re =
+            Regex::new(r"^([KQBNR])([a-h])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::from_str(&cap[1]) ?, 
-                MoveKind::Normal(Position::new(pos_col!(cap, 2), None), pos!(cap, 3, 4)));
+                Piece::from_str(&cap[1])?,
+                MoveKind::Normal(Position::new(pos_col!(cap, 2), None), pos!(cap, 3, 4)),
+            );
             mov.is_capture = true;
             mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
@@ -432,12 +455,14 @@ impl Move {
         }
 
         // Piece capture from a specific row:
-        let re = Regex::new(r"^([KQBNR])([0-9])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+        let re =
+            Regex::new(r"^([KQBNR])([0-9])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::from_str(&cap[1]) ?, 
-                MoveKind::Normal(Position::new(None, pos_row!(cap, 2)), pos!(cap, 3, 4)));
+                Piece::from_str(&cap[1])?,
+                MoveKind::Normal(Position::new(None, pos_row!(cap, 2)), pos!(cap, 3, 4)),
+            );
             mov.is_capture = true;
             mov.check_type = check_type!(cap, 5);
             mov.annotation = annotation!(cap, 6);
@@ -445,12 +470,14 @@ impl Move {
         }
 
         // Piece capture from a specific column and row (long san):
-        let re = Regex::new(r"^([KQBNR])([a-h])([0-9])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
+        let re = Regex::new(r"^([KQBNR])([a-h])([0-9])x([a-h])([1-8])(\+|\#)?(\?\?|\?|\?!|!|!!)?$")
+            .unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
             let mut mov = Move::new(
-                Piece::from_str(&cap[1]) ?, 
-                MoveKind::Normal(pos!(cap, 2, 3), pos!(cap, 4, 5)));
+                Piece::from_str(&cap[1])?,
+                MoveKind::Normal(pos!(cap, 2, 3), pos!(cap, 4, 5)),
+            );
             mov.is_capture = true;
             mov.check_type = check_type!(cap, 6);
             mov.annotation = annotation!(cap, 7);
@@ -461,16 +488,17 @@ impl Move {
         let re = Regex::new(r"^([a-h])([1-8])=?([KQBNR])(\+|\#)?(\?\?|\?|\?!|!|!!)?$").unwrap();
         if re.is_match(value) {
             let cap = re.captures(value).unwrap();
-            let mut mov = Move::new(
-                Piece::Pawn,
-                MoveKind::Normal(POS_NONE, pos!(cap, 1, 2)));
+            let mut mov = Move::new(Piece::Pawn, MoveKind::Normal(POS_NONE, pos!(cap, 1, 2)));
             mov.promotion = promotion!(cap, 3);
             mov.check_type = check_type!(cap, 4);
             mov.annotation = annotation!(cap, 5);
             return Ok(mov);
         }
 
-        Err(SanError::RegexExhausted(format!("could not parse: {}", value)))
+        Err(SanError::RegexExhausted(format!(
+            "could not parse: {}",
+            value
+        )))
     }
 }
 
