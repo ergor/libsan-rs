@@ -61,6 +61,8 @@ pub enum SanError {
     RegexExhausted(String),
 }
 
+impl std::error::Error for SanError {}
+
 pub type Result<T> = std::result::Result<T, SanError>;
 
 /**
