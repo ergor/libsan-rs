@@ -1,6 +1,6 @@
 [package]
 name = "san-rs"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Erol Gorancic"]
 edition = "2018"
 description = "A library for parsing standard algebraic notation (SAN)"
